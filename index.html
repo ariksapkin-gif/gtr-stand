@@ -59,7 +59,7 @@ details.method .formula{font-family:Consolas,monospace;color:#a0c4e8;background:
 <body>
 <header>
 <h1>Виртуальный стенд гидротрансформатора</h1>
-<p>Интерактивный расчёт гидромеханической передачи · v2.3</p>
+<p>Интерактивный расчёт гидромеханической передачи · v2.5</p>
 <button id="resetBtn" type="button">Сбросить к значениям по умолчанию</button>
 <button id="shareBtn" type="button">🔗 Скопировать ссылку</button>
 <label style="display:block;margin-top:10px;cursor:pointer;color:#d0d8e0;font-size:14px"><input type="checkbox" id="extendedModel" style="width:auto;margin-right:6px;vertical-align:middle">Расширенная модель (учёт ZH на K₀)</label>
@@ -184,6 +184,9 @@ Q_тепла = N_нас − N_турб</div>
 <div class="tab active" data-tab="graphs">Графики</div>
 <div class="tab" data-tab="table">Таблица</div>
 <div class="tab" data-tab="presets">Пресеты</div>
+<div class="tab" data-tab="sens">Чувствительность</div>
+<div class="tab" data-tab="solver">Подбор</div>
+<div class="tab" data-tab="valid">Валидация</div>
 </div>
 <div style="margin:10px 0;display:flex;gap:10px">
 <button id="btnCsv" type="button">Скачать CSV</button>
@@ -235,13 +238,68 @@ Q_тепла = N_нас − N_турб</div>
 <p style="font-size:12px;color:#8899aa;margin:0 0 10px">Пресет заполняет мощность, обороты и таблицу ВШХ двигателя. Геометрия, жидкость и параметры потерь остаются вашими — переключайтесь между двигателями и смотрите, как меняется совместная работа с ГТР.</p>
 <div id="presetList"></div>
 </div>
+<div class="tab-content" id="tab-sens">
+<p style="font-size:12px;color:#8899aa;margin:0 0 10px">Перебор одного параметра в диапазоне ± заданного процента при фиксированных остальных. На каждом шаге — полный расчёт модели. K₀ берётся из стартовой точки кривой K(i), η_max — по той же формуле, что на панели метрик. Если кривая у края диаграммы «выполаживается» — параметр упёрся в допустимый предел (клампинг), это тоже полезная информация.</p>
+<div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px">
+<div><label style="font-size:12px;color:#8899aa;display:block;margin-bottom:4px">Параметр</label>
+<select id="sensParam" style="background:#0f1a2e;border:1px solid #2a3548;border-radius:5px;color:#e0e0e0;font-size:13px;padding:5px 8px;min-width:230px"></select></div>
+<div><label style="font-size:12px;color:#8899aa;display:block;margin-bottom:4px">Размах ±, %</label>
+<input type="number" id="sensRange" value="20" step="5" min="5" max="100" style="width:80px;padding:4px 8px;background:#0f1a2e;border:1px solid #2a3548;border-radius:5px;color:#fff;font-size:13px"></div>
+<button id="btnSens" type="button">📊 Построить</button>
+<span id="sensStatus" style="font-size:12px;color:#6a7a8a"></span>
+</div>
+<div class="chart-wrap">
+<canvas id="chartSens"></canvas>
+<div class="chart-title">Карта чувствительности: K₀ и η_max от варьируемого параметра</div>
+</div>
+</div>
+<div class="tab-content" id="tab-solver">
+<p style="font-size:12px;color:#8899aa;margin:0 0 10px">Обратная задача: заданы желаемые K₀ и η_max — стенд подбирает активный диаметр D и выходной угол турбины β_T2 сеточным поиском. На каждой точке сетки (14 × 16 = 224 комбинации) выполняется полный расчёт модели, остальные параметры берутся с панели. Если точно попасть в обе цели нельзя, показывается ближайшая конфигурация и величина отклонения.</p>
+<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px">
+<div><label style="font-size:12px;color:#8899aa;display:block;margin-bottom:4px">K₀ требуемый</label>
+<input type="number" id="svK0" value="2.4" step="0.05" min="1.1" max="6" style="width:90px;padding:4px 8px;background:#0f1a2e;border:1px solid #2a3548;border-radius:5px;color:#fff;font-size:13px"></div>
+<div><label style="font-size:12px;color:#8899aa;display:block;margin-bottom:4px">η_max целевая, пусто — не учитывать</label>
+<input type="number" id="svEta" value="0.86" step="0.01" min="0.5" max="0.98" placeholder="не учитывать" style="width:110px;padding:4px 8px;background:#0f1a2e;border:1px solid #2a3548;border-radius:5px;color:#fff;font-size:13px"></div>
+</div>
+<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px">
+<div><label style="font-size:12px;color:#8899aa;display:block;margin-bottom:4px">D мин, м</label>
+<input type="number" id="svDmin" value="0.10" step="0.005" style="width:90px;padding:4px 8px;background:#0f1a2e;border:1px solid #2a3548;border-radius:5px;color:#fff;font-size:13px"></div>
+<div><label style="font-size:12px;color:#8899aa;display:block;margin-bottom:4px">D макс, м</label>
+<input type="number" id="svDmax" value="0.24" step="0.005" style="width:90px;padding:4px 8px;background:#0f1a2e;border:1px solid #2a3548;border-radius:5px;color:#fff;font-size:13px"></div>
+<div><label style="font-size:12px;color:#8899aa;display:block;margin-bottom:4px">β_T2 мин, °</label>
+<input type="number" id="svAmin" value="90" step="1" style="width:80px;padding:4px 8px;background:#0f1a2e;border:1px solid #2a3548;border-radius:5px;color:#fff;font-size:13px"></div>
+<div><label style="font-size:12px;color:#8899aa;display:block;margin-bottom:4px">β_T2 макс, °</label>
+<input type="number" id="svAmax" value="175" step="1" style="width:80px;padding:4px 8px;background:#0f1a2e;border:1px solid #2a3548;border-radius:5px;color:#fff;font-size:13px"></div>
+</div>
+<button id="btnSolver" type="button">🎯 Подобрать</button>
+<span id="solverStatus" style="font-size:12px;color:#6a7a8a;margin-left:10px"></span>
+<div id="solverOut" style="margin-top:12px"></div>
+</div>
+<div class="tab-content" id="tab-valid">
+<p style="font-size:12px;color:#8899aa;margin:0 0 10px">Проверка адекватности: вставьте таблицу экспериментальных точек реального (или справочного) ГТР — по одной точке в строке. Формат: «i; K» или «i; K; η», разделитель — точка с запятой или пробел, десятичный разделитель — точка или запятая. Строки с # игнорируются. Стенд нанесёт точки поверх модельных кривых и посчитает отклонения: модель интерполируется по своей расчётной сетке в точках эксперимента.</p>
+<textarea id="expTable" placeholder="i     K      η&#10;0     2.95   0.00&#10;0.1   2.55   0.62&#10;0.2   2.20   0.74&#10;0.3   1.88   0.79&#10;0.5   1.42   0.83&#10;0.7   1.14   0.85&#10;0.9   1.03   0.83" style="width:100%;height:170px;background:#0f1a2e;border:1px solid #2a3548;border-radius:5px;color:#e0e0e0;font-family:monospace;font-size:13px;padding:8px;box-sizing:border-box;margin-bottom:10px"></textarea>
+<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+<button id="btnValid" type="button">✓ Проверить</button>
+<button id="btnExpExample" type="button">🎲 Пример из модели</button>
+<span id="validStatus" style="font-size:12px;color:#6a7a8a"></span>
+</div>
+<div id="validOut"></div>
+<div class="chart-wrap" id="validChartWrap" style="display:none">
+<canvas id="chartValid"></canvas>
+<div class="chart-title">Валидация: модель против эксперимента</div>
+</div>
+</div>
 </div>
 </div>
 </div>
 <script>
 /**
  * ================================================================
- * Виртуальный стенд гидротрансформатора v2.3
+ * v2.5: валидация по экспериментальным точкам (вкладка «Валидация»,
+ * ввод таблицы i/K/η, метрики отклонений, точечный график)
+  * Виртуальный стенд гидротрансформатора v2.4
+ * v2.4: обратная задача — сеточный подбор D и β_T2 под целевые
+ * K₀ и η_max (вкладка «Подбор», топ-5 вариантов, применение кликом)
  * v2.3: единый рендер графиков (_renderChartCore), маркер точки
  * сцепления i_coup на графиках 1–3, вкладка «Пресеты» двигателей,
  * PNG-экспорт по активной вкладке, сворачиваемая методика расчёта,
@@ -1210,7 +1268,20 @@ this._lastEtaMech = eta_mech;
     const leg = [];
     datasets.forEach((ds, idx) => {
       const pal = palList[idx % palList.length]; const yp = ds.right ? yR : yL; const arr = ds.data;
-      // Базовая (сравнительная) серия: серый пунктир, без заливки и свечения
+      // Точечная серия (экспериментальные данные): маркеры без линии
+      if (ds.points) {
+        const col = ds.color || '#e67e50';
+        arr.forEach((v, k) => {
+          const x = xAt(ds, k), y = yp(v);
+          ctx.beginPath(); ctx.arc(x, y, 4, 0, 2 * Math.PI);
+          ctx.fillStyle = col; ctx.fill();
+          ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.2; ctx.stroke();
+        });
+        leg.push({ name: ds.name, color: col });
+        return;
+      }
+
+// Базовая (сравнительная) серия: серый пунктир, без заливки и свечения
       if (ds.dashed) {
         const col = ds.color || '#95a5b8';
         ctx.save();
@@ -1292,13 +1363,15 @@ this._lastEtaMech = eta_mech;
       datasets.forEach((ds, di) => {
         const pal = palList[di % palList.length];
         const y = (ds.right ? yR : yL)(ds.data[hoverIdx]);
-               ctx.fillStyle = ds.dashed ? (ds.color || '#95a5b8') : pal.line; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5;
+               ctx.fillStyle = (ds.dashed || ds.points) ? (ds.color || '#95a5b8') : pal.line; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5;
+;
         ctx.beginPath(); ctx.arc(hx, y, 4.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
       });
       ctx.restore();
       this._drawTooltipBox(ctx, W, hx, pT, xlabel + ': ' + this._fmtVal(xv),
-      datasets.map((ds, di) => ({ color: ds.dashed ? (ds.color || '#95a5b8') : palList[di % palList.length].line,
-      label: ds.name + ' = ' + this._fmtVal(ds.data[hoverIdx]) })));
+              datasets.filter(ds => !ds.points).map((ds, di) => ({ color: ds.dashed ? (ds.color || '#95a5b8') : palList[di % palList.length].line,
+          label: ds.name + ' = ' + this._fmtVal(ds.data[hoverIdx]) })));
+
 
     }
   }
@@ -1555,6 +1628,353 @@ this._lastEtaMech = eta_mech;
     bi.style.display = '';
   }
   // ----------------------------------------------------------------
+  //  Карта чувствительности
+  // ----------------------------------------------------------------
+
+  /** Список параметров, доступных для перебора (id input → подпись) */
+  _sensParams() {
+    return [
+      { id: 'D',        name: 'D — активный диаметр' },
+      { id: 'd_in',     name: 'd_in — диаметр входа' },
+      { id: 'b',        name: 'b — ширина канала' },
+      { id: 'delta',    name: 'δ — толщина лопатки' },
+      { id: 'bH2',      name: 'β_H2 — выход насоса' },
+      { id: 'bT1',      name: 'β_T1 — вход турбины' },
+      { id: 'bT2',      name: 'β_T2 — выход турбины' },
+      { id: 'bP1',      name: 'β_P1 — вход реактора' },
+      { id: 'bP2',      name: 'β_P2 — выход реактора' },
+      { id: 'bH1',      name: 'β_H1 — вход насоса' },
+      { id: 'ZH',       name: 'Z_H — лопатки насоса' },
+      { id: 'ZT',       name: 'Z_T — лопатки турбины' },
+      { id: 'ZP',       name: 'Z_P — лопатки реактора' },
+      { id: 'rho',      name: 'ρ — плотность жидкости' },
+      { id: 'nu',       name: 'ν — вязкость' },
+      { id: 'eta_mech', name: 'η_мех — механический КПД' },
+      { id: 'lam_tr',   name: 'λ_tr — коэф. трения' },
+      { id: 'phi_ud',   name: 'φ — коэф. удара' },
+      { id: 'i_lock',   name: 'i_lock — точка блокировки' }
+    ];
+  }
+
+  /** η_max по сетке с уточнением вершины параболы — та же формула, что в update() */
+  _etaMaxOf(N) {
+    const opIdx = this._findOpIdx(N);
+    if (opIdx > 0 && opIdx < N.length - 1) {
+      const y0 = N[opIdx - 1].eta, y1 = N[opIdx].eta, y2 = N[opIdx + 1].eta;
+      const denom = y0 - 2 * y1 + y2;
+      if (Math.abs(denom) > 1e-12) {
+        const d = 0.5 * (y0 - y2) / denom;
+        return y1 - 0.25 * (y0 - y2) * d;
+      }
+      return y1;
+    }
+    return N[opIdx].eta;
+  }
+
+  /**
+   * Перебор выбранного параметра: значение поля меняется, вызывается
+   * compute() (без отрисовки графиков), снимаются K₀ и η_max.
+   * По завершении исходное значение поля восстанавливается.
+   */
+  _runSensitivity() {
+    const sp = document.getElementById('sensParam');
+    if (!sp) return;
+    const id = sp.value;
+    const el = document.getElementById(id);
+    if (!el) return;
+    const rangeInp = document.getElementById('sensRange');
+    let pct = rangeInp ? this._parse('sensRange') : 20;
+    if (!isFinite(pct)) pct = 20;
+    pct = Math.min(100, Math.max(5, pct));
+    const base = this._parse(id);
+    const st = document.getElementById('sensStatus');
+    if (!isFinite(base) || base <= 0) {
+      if (st) st.textContent = 'Проверьте значение параметра';
+      return;
+    }
+    const name = sp.options[sp.selectedIndex].text;
+    const NP = 21;
+    const saved = el.value;
+    const xs = [], K0s = [], E0s = [];
+    let err = null;
+    try {
+      for (let k = 0; k < NP; k++) {
+        const v = base * (1 + (2 * pct / 100) * (k / (NP - 1) - 0.5));
+        el.value = (Math.abs(v) >= 1 ? v.toFixed(4) : v.toFixed(6));
+        const N = this.compute();
+        if (N && N.length) {
+          xs.push(v);
+          K0s.push(N[0].K);
+          E0s.push(this._etaMaxOf(N));
+        }
+      }
+    } catch (e) {
+      err = e;
+    } finally {
+      el.value = saved;
+      this.update();
+    }
+    if (err) {
+      if (st) st.textContent = 'Ошибка расчёта: ' + err.message;
+      return;
+    }
+    if (!xs.length) {
+      if (st) st.textContent = 'Расчёт не дал результатов';
+      return;
+    }
+    this._drawFlex(document.getElementById('chartSens'),
+      [{ name: 'K₀', xdata: xs.slice(), data: K0s.slice() },
+       { name: 'η_max', xdata: xs.slice(), data: E0s.slice(), right: true }],
+      name, 'K₀', 'η_max');
+    if (st) st.textContent = 'Точек: ' + xs.length + ' · база: ' + this._fmtVal(base) +
+      ' · размах ±' + pct + '% · наведите мышь на график для точных значений';
+  }
+    // ----------------------------------------------------------------
+  //  Обратная задача: подбор D и β_T2 под целевые K₀ и η_max
+  // ----------------------------------------------------------------
+
+  /** Отклонение конфигурации от целей: сумма относительных ошибок */
+  _solverScore(N, k0t, etat) {
+    const k0 = N[0].K;
+    const em = this._etaMaxOf(N);
+    let s = Math.abs(k0 - k0t) / k0t;
+    if (etat > 0) s += Math.abs(em - etat) / etat;
+    return { s: s, k0: k0, em: em };
+  }
+
+  /**
+   * Сеточный поиск по D и β_T2: на каждой точке — полный расчёт модели.
+   * Цель — минимальная сумма относительных отклонений K₀ и η_max.
+   * Значения полей панели временно подменяются, в конце восстанавливаются.
+   */
+  _runSolver() {
+    const st = document.getElementById('solverStatus');
+    const out = document.getElementById('solverOut');
+    const k0t = this._parse('svK0');
+    const etatRaw = this._parse('svEta');
+    const etat = isFinite(etatRaw) && etatRaw > 0 ? etatRaw : 0;
+    if (!isFinite(k0t) || k0t <= 1.01) {
+      if (st) st.textContent = 'K₀_треб должен быть числом больше 1 (трансформация)';
+      return;
+    }
+    if (etat > 0 && (etat < 0.5 || etat > 0.98)) {
+      if (st) st.textContent = 'η_цель должна быть в диапазоне 0.5…0.98 или поле пустым';
+      return;
+    }
+    const dMin = this._parse('svDmin'), dMax = this._parse('svDmax');
+    const aMin = this._parse('svAmin'), aMax = this._parse('svAmax');
+    if (![dMin, dMax, aMin, aMax].every(isFinite) || dMin <= 0 || dMax <= dMin || aMax <= aMin) {
+      if (st) st.textContent = 'Проверьте диапазоны D и β_T2';
+      return;
+    }
+    const elD = document.getElementById('D');
+    const elA = document.getElementById('bT2');
+    if (!elD || !elA) return;
+    const savedD = elD.value, savedA = elA.value;
+    const ND = 14, NA = 16;
+    const results = [];
+    let err = null;
+    try {
+      for (let id = 0; id < ND; id++) {
+        elD.value = (dMin + (dMax - dMin) * id / (ND - 1)).toFixed(4);
+        for (let ia = 0; ia < NA; ia++) {
+          elA.value = (aMin + (aMax - aMin) * ia / (NA - 1)).toFixed(2);
+          const N = this.compute();
+          if (N && N.length) {
+            const r = this._solverScore(N, k0t, etat);
+            results.push({ D: parseFloat(elD.value), A: parseFloat(elA.value), k0: r.k0, em: r.em, s: r.s });
+          }
+        }
+      }
+    } catch (e) { err = e; }
+    finally { elD.value = savedD; elA.value = savedA; this.update(); }
+    if (err) { if (st) st.textContent = 'Ошибка расчёта: ' + err.message; return; }
+    if (!results.length) { if (st) st.textContent = 'Расчёт не дал результатов'; return; }
+    results.sort((x, y) => x.s - y.s);
+    const best = results[0];
+    const pct = v => (v >= 0 ? '+' : '−') + Math.abs(v * 100).toFixed(1) + '%';
+    let html = '<div style="border:1px solid #2a3548;border-radius:8px;padding:12px;background:#101a2c">' +
+      '<div style="font-size:14px;color:#e0e6f0;margin-bottom:6px"><b>Лучший вариант:</b> D = ' + best.D.toFixed(3) + ' м, β_T2 = ' + best.A.toFixed(1) + '°</div>' +
+      '<div style="font-size:13px;color:#aab6c8;line-height:1.6">K₀ = ' + best.k0.toFixed(2) + ' (цель ' + k0t.toFixed(2) + ', ' + pct((best.k0 - k0t) / k0t) + ')';
+    if (etat > 0) {
+      const de = (best.em - etat) * 100;
+      html += ' · η_max = ' + (best.em * 100).toFixed(1) + '% (цель ' + (etat * 100).toFixed(1) + '%, ' +
+        (de >= 0 ? '+' : '−') + Math.abs(de).toFixed(1) + ' п.п.)';
+    }
+    html += '</div>';
+    if (etat > 0 && best.s > 0.10) {
+      html += '<div style="font-size:12px;color:#c9a44a;margin-top:6px">Точную пару «K₀ и η одновременно» найти не удалось — цель, вероятно, физически недостижима в заданных диапазонах. Расширьте диапазоны поиска или ослабьте одну из целей.</div>';
+    }
+    html += '<div style="margin-top:10px"><button id="btnApplyBest" type="button">✓ Применить к панели</button></div>';
+    html += '<table style="border-collapse:collapse;margin-top:12px;font-size:12.5px;color:#aab6c8">' +
+      '<tr style="color:#8899aa;text-align:left"><th style="padding:4px 10px 4px 0">D, м</th><th style="padding:4px 10px 4px 0">β_T2, °</th><th style="padding:4px 10px 4px 0">K₀</th><th style="padding:4px 10px 4px 0">η_max</th><th style="padding:4px 10px 4px 0">Сумма откл., %</th></tr>';
+    results.slice(0, 5).forEach((r, k) => {
+      html += '<tr' + (k === 0 ? ' style="color:#e0e6f0"' : '') + '><td style="padding:3px 10px 3px 0">' + r.D.toFixed(3) +
+        '</td><td style="padding:3px 10px 3px 0">' + r.A.toFixed(1) +
+        '</td><td style="padding:3px 10px 3px 0">' + r.k0.toFixed(2) +
+        '</td><td style="padding:3px 10px 3px 0">' + (r.em * 100).toFixed(1) + '%' +
+        '</td><td style="padding:3px 10px 3px 0">' + (r.s * 100).toFixed(1) + '</td></tr>';
+    });
+    html += '</table></div>';
+    out.innerHTML = html;
+    const ap = document.getElementById('btnApplyBest');
+    if (ap) ap.addEventListener('click', () => {
+      elD.value = best.D.toFixed(4);
+      elA.value = best.A.toFixed(2);
+      this.update();
+      if (st) st.textContent = 'Применено: D = ' + best.D.toFixed(3) + ' м, β_T2 = ' + best.A.toFixed(1) + '°';
+    });
+    if (st) st.textContent = 'Просчитано комбинаций: ' + results.length + ' · критерий — сумма относительных отклонений';
+  }
+    // ----------------------------------------------------------------
+  //  Валидация по экспериментальным точкам
+  // ----------------------------------------------------------------
+
+  /** Разбор таблицы эксперимента: строки «i; K[; η]», # — комментарии */
+  _parseExpTable(text) {
+    const pts = [];
+    String(text || '').split(/\r?\n/).forEach(line => {
+      let s = line.trim();
+      if (!s || s[0] === '#' || s[0] === '/') return;
+      s = s.replace(/,/g, '.');
+      const parts = s.split(/[;\s]+/).filter(x => x.length);
+      if (parts.length < 2) return;
+      const i = parseFloat(parts[0]), K = parseFloat(parts[1]);
+      const eta = parts.length >= 3 ? parseFloat(parts[2]) : NaN;
+      if (!isFinite(i) || !isFinite(K)) return;
+      if (i < 0 || i > 1.2 || K < 1 || K > 10) return;
+      pts.push({ i: i, K: K, eta: (isFinite(eta) && eta > 0 && eta <= 1) ? eta : NaN });
+    });
+    return pts;
+  }
+
+  /** Линейная интерполяция массива vals по сетке xI в точке x */
+  _interpGrid(xI, vals, x) {
+    if (x <= xI[0]) return vals[0];
+    if (x >= xI[xI.length - 1]) return vals[vals.length - 1];
+    for (let k = 1; k < xI.length; k++) {
+      if (x <= xI[k]) {
+        const t = (x - xI[k - 1]) / (xI[k] - xI[k - 1]);
+        return vals[k - 1] + t * (vals[k] - vals[k - 1]);
+      }
+    }
+    return vals[vals.length - 1];
+  }
+
+  /** График валидации: модель линиями, эксперимент точками */
+  _drawValidation(N, pts) {
+    const xI = N.map((d, k) => (typeof d.i === 'number' ? d.i : k / (N.length - 1)));
+    const ds = [
+      { name: 'K модель', xdata: xI.slice(), data: N.map(d => d.K) },
+      { name: 'η модель', xdata: xI.slice(), data: N.map(d => d.eta), right: true }
+    ];
+    const Kp = pts.filter(p => isFinite(p.K));
+    if (Kp.length) ds.push({ name: 'K эксп', xdata: Kp.map(p => p.i), data: Kp.map(p => p.K), points: true });
+    const Ep = pts.filter(p => isFinite(p.eta));
+    if (Ep.length) ds.push({ name: 'η эксп', xdata: Ep.map(p => p.i), data: Ep.map(p => p.eta), right: true, points: true });
+    this._drawGraph(document.getElementById('chartValid'), ds, 'i', 'K', 'η');
+  }
+
+  /** Демонстрационный набор: текущая модель с разбросом до ±4% */
+  _fillExpExample() {
+    const N = this._lastN;
+    if (!N || !N.length) return;
+    const xI = N.map((d, k) => (typeof d.i === 'number' ? d.i : k / (N.length - 1)));
+    const Kmod = N.map(d => d.K), Emod = N.map(d => d.eta);
+    const fac = [1.03, 0.97, 1.02, 0.96, 1.01, 0.985, 1.04, 0.99, 1.02, 0.975, 1.01];
+    let txt = '# Демонстрационный набор: модель с разбросом до 4% (проверка механизма валидации)\n';
+    for (let k = 0; k <= 10; k++) {
+      const x = k / 10;
+      const K = this._interpGrid(xI, Kmod, x) * fac[k];
+      const E = this._interpGrid(xI, Emod, x) * (2 - fac[k]);
+      txt += x.toFixed(2) + ' ' + K.toFixed(3) + ' ' + E.toFixed(3) + '\n';
+    }
+    const ta = document.getElementById('expTable');
+    if (ta) ta.value = txt;
+    this._runValidation();
+  }
+
+  /** Полная валидация: метрики отклонений и график */
+  _runValidation() {
+    const ta = document.getElementById('expTable');
+    const st = document.getElementById('validStatus');
+    const out = document.getElementById('validOut');
+    const wrap = document.getElementById('validChartWrap');
+    if (!ta || !st || !out) return;
+    const pts = this._parseExpTable(ta.value);
+    if (!pts.length) {
+      st.textContent = 'Не найдено ни одной корректной точки. Формат: «i; K; η» — например «0.05; 2.35; 0.72»';
+      out.innerHTML = ''; if (wrap) wrap.style.display = 'none';
+      return;
+    }
+    const N = this._lastN;
+    if (!N || !N.length) return;
+    const xI = N.map((d, k) => (typeof d.i === 'number' ? d.i : k / (N.length - 1)));
+    const Kmod = N.map(d => d.K), Emod = N.map(d => d.eta);
+    const rows = [];
+    let sK = 0, sK2 = 0, sKexp = 0, maxK = 0;
+    let sE = 0, sE2 = 0, sEexp = 0, maxE = 0, nE = 0;
+    pts.forEach(p => {
+      const mk = this._interpGrid(xI, Kmod, p.i);
+      const ek = mk - p.K;
+      sK += Math.abs(ek); sK2 += ek * ek; sKexp += p.K;
+      maxK = Math.max(maxK, Math.abs(ek));
+      const row = { i: p.i, K: p.K, mK: mk, eK: ek };
+      if (isFinite(p.eta)) {
+        const me = this._interpGrid(xI, Emod, p.i);
+        const ee = me - p.eta;
+        sE += Math.abs(ee); sE2 += ee * ee; sEexp += p.eta; nE++;
+        maxE = Math.max(maxE, Math.abs(ee));
+        row.eta = p.eta; row.mEta = me; row.eEta = ee;
+      }
+      rows.push(row);
+    });
+    const nK = rows.length;
+    const rmseK = Math.sqrt(sK2 / nK);
+    const meanK = sK / nK;
+    const relK = meanK / (sKexp / nK) * 100;
+    const em = this._etaMaxOf(N);
+    let verdict, vcol;
+    if (relK <= 5) { verdict = 'модель хорошо согласуется с экспериментом'; vcol = '#4caf7d'; }
+    else if (relK <= 15) { verdict = 'согласованность удовлетворительная'; vcol = '#c9a44a'; }
+    else { verdict = 'низкая согласованность — проверьте данные или параметры модели'; vcol = '#e06c5a'; }
+    let html = '<div style="border:1px solid #2a3548;border-radius:8px;padding:12px;background:#101a2c">' +
+      '<div style="font-size:14px;margin-bottom:8px;color:' + vcol + '"><b>Вердикт:</b> ' + verdict + '</div>' +
+      '<div style="font-size:13px;color:#aab6c8;line-height:1.7">' +
+      'Точек по K: ' + nK + ' · среднее |ΔK|: ' + meanK.toFixed(3) + ' · СКО: ' + rmseK.toFixed(3) +
+      ' · максимум |ΔK|: ' + maxK.toFixed(3) + ' · средняя относительная ошибка: <b>' + relK.toFixed(1) + '%</b><br>';
+    if (nE) {
+      const rmseE = Math.sqrt(sE2 / nE) * 100, meanE = sE / nE * 100;
+      const relE = meanE / (sEexp / nE) * 100;
+      html += 'Точек по η: ' + nE + ' · среднее |Δη|: ' + meanE.toFixed(2) + ' п.п. · СКО: ' + rmseE.toFixed(2) +
+        ' п.п. · максимум |Δη|: ' + (maxE * 100).toFixed(2) + ' п.п.<br>';
+    }
+    html += 'η_max модели: ' + (em * 100).toFixed(1) + '%</div>';
+    html += '<table style="border-collapse:collapse;margin-top:10px;font-size:12.5px;color:#aab6c8">' +
+      '<tr style="color:#8899aa;text-align:left"><th style="padding:4px 10px 4px 0">i</th>' +
+      '<th style="padding:4px 10px 4px 0">K эксп</th><th style="padding:4px 10px 4px 0">K модель</th>' +
+      '<th style="padding:4px 10px 4px 0">ΔK</th>';
+    if (nE) html += '<th style="padding:4px 10px 4px 0">η эксп</th><th style="padding:4px 10px 4px 0">η модель</th><th style="padding:4px 10px 4px 0">Δη, п.п.</th>';
+    html += '</tr>';
+    rows.slice(0, 15).forEach(r => {
+      html += '<tr><td style="padding:3px 10px 3px 0">' + r.i.toFixed(2) +
+        '</td><td style="padding:3px 10px 3px 0">' + r.K.toFixed(3) +
+        '</td><td style="padding:3px 10px 3px 0">' + r.mK.toFixed(3) +
+        '</td><td style="padding:3px 10px 3px 0;color:' + (Math.abs(r.eK) / r.K > 0.05 ? '#e06c5a' : '#aab6c8') + '">' + (r.eK >= 0 ? '+' : '−') + Math.abs(r.eK).toFixed(3) + '</td>';
+      if (nE) html += '<td style="padding:3px 10px 3px 0">' + (isFinite(r.eta) ? r.eta.toFixed(3) : '—') +
+        '</td><td style="padding:3px 10px 3px 0">' + (isFinite(r.eta) ? r.mEta.toFixed(3) : '—') +
+        '</td><td style="padding:3px 10px 3px 0;color:' + (isFinite(r.eta) && Math.abs(r.eEta) > 0.05 ? '#e06c5a' : '#aab6c8') + '">' + (isFinite(r.eta) ? (r.eEta >= 0 ? '+' : '−') + Math.abs(r.eEta * 100).toFixed(1) : '—') + '</td>';
+      html += '</tr>';
+    });
+    if (rows.length > 15) html += '<tr><td colspan="7" style="padding:4px 0;color:#6a7a8a">…и ещё ' + (rows.length - 15) + ' строк (всё учтено в метриках)</td></tr>';
+    html += '</table></div>';
+    out.innerHTML = html;
+    if (wrap) wrap.style.display = '';
+    this._drawValidation(N, pts);
+    st.textContent = 'Точек: ' + pts.length + ' · при изменении параметров панели нажмите «Проверить» заново';
+  }
+
+// ----------------------------------------------------------------
   //  Главный цикл обновления
   // ----------------------------------------------------------------
 
@@ -1766,8 +2186,25 @@ this._lastEtaMech = eta_mech;
     // Сравнение конфигураций: запомнить/убрать базу
     const remBtn = document.getElementById('btnRemember');
     if (remBtn) remBtn.addEventListener('click', () => this._rememberBase());
-    const clrBtn = document.getElementById('btnClearBase');
-    if (clrBtn) clrBtn.addEventListener('click', () => this._clearBase());
+        // Карта чувствительности: заполнение селекта и кнопка «Построить»
+    const sp = document.getElementById('sensParam');
+    if (sp && !sp.options.length) {
+      this._sensParams().forEach(p => {
+        const o = document.createElement('option');
+        o.value = p.id; o.textContent = p.name;
+        sp.appendChild(o);
+      });
+    }
+    const sensBtn = document.getElementById('btnSens');
+    if (sensBtn) sensBtn.addEventListener('click', () => this._runSensitivity());
+    // Обратная задача: подбор конфигурации под цели
+    const solBtn = document.getElementById('btnSolver');
+    if (solBtn) solBtn.addEventListener('click', () => this._runSolver());
+    // Валидация по экспериментальным точкам
+    const valBtn = document.getElementById('btnValid');
+    if (valBtn) valBtn.addEventListener('click', () => this._runValidation());
+    const expBtn = document.getElementById('btnExpExample');
+    if (expBtn) expBtn.addEventListener('click', () => this._fillExpExample());
 
     // Экспорт данных: CSV-таблица и PNG активного графика
     const csvBtn = document.getElementById('btnCsv');
