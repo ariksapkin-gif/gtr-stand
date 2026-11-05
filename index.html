@@ -59,7 +59,7 @@ details.method .formula{font-family:Consolas,monospace;color:#a0c4e8;background:
 <body>
 <header>
 <h1>Виртуальный стенд гидротрансформатора</h1>
-<p>Интерактивный расчёт гидромеханической передачи · v2.5</p>
+<p>Интерактивный расчёт гидромеханической передачи · v2.6</p>
 <button id="resetBtn" type="button">Сбросить к значениям по умолчанию</button>
 <button id="shareBtn" type="button">🔗 Скопировать ссылку</button>
 <label style="display:block;margin-top:10px;cursor:pointer;color:#d0d8e0;font-size:14px"><input type="checkbox" id="extendedModel" style="width:auto;margin-right:6px;vertical-align:middle">Расширенная модель (учёт ZH на K₀)</label>
@@ -187,6 +187,7 @@ Q_тепла = N_нас − N_турб</div>
 <div class="tab" data-tab="sens">Чувствительность</div>
 <div class="tab" data-tab="solver">Подбор</div>
 <div class="tab" data-tab="valid">Валидация</div>
+<div class="tab" data-tab="sim">Разгон</div>
 </div>
 <div style="margin:10px 0;display:flex;gap:10px">
 <button id="btnCsv" type="button">Скачать CSV</button>
@@ -289,7 +290,51 @@ Q_тепла = N_нас − N_турб</div>
 <div class="chart-title">Валидация: модель против эксперимента</div>
 </div>
 </div>
+<div class="tab-content" id="tab-sim">
+<p style="font-size:12px;color:#8899aa;margin:0 0 10px">Симуляция разгона: квазистационарная модель «двигатель + ГТР + машина» на одной передаче u₀. Слева — конфигурация ГТР с основной панели (D, ρ, i_lock, K(i)); λ насоса согласуется автоматически на оборотах n_расч, отношение λ₀/λ_блок — поле k_λ. Сравнение: с ГТР против жёсткой передачи (двигатель с места связан с колёсами, без проскальзывания — нижняя граница для механической схемы). Ориентир адекватности: РМ 800 Т разгоняется до 100 км/ч за ~10,8 с по паспорту.</p>
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+<div><label style="font-size:11px;color:#8899aa;display:block;margin-bottom:3px">M_max, Н·м</label><input type="number" id="simMmax" value="75" step="1" style="width:74px;padding:4px 6px;background:#0f1a2e;border:1px solid #2a3548;border-radius:5px;color:#fff;font-size:12px"></div>
+<div><label style="font-size:11px;color:#8899aa;display:block;margin-bottom:3px">n_M, об/мин</label><input type="number" id="simNM" value="5000" step="100" style="width:74px;padding:4px 6px;background:#0f1a2e;border:1px solid #2a3548;border-radius:5px;color:#fff;font-size:12px"></div>
+<div><label style="font-size:11px;color:#8899aa;display:block;margin-bottom:3px">n_холост</label><input type="number" id="simNidle" value="1200" step="50" style="width:74px;padding:4px 6px;background:#0f1a2e;border:1px solid #2a3548;border-radius:5px;color:#fff;font-size:12px"></div>
+<div><label style="font-size:11px;color:#8899aa;display:block;margin-bottom:3px">n_макс</label><input type="number" id="simNmax" value="7500" step="100" style="width:74px;padding:4px 6px;background:#0f1a2e;border:1px solid #2a3548;border-radius:5px;color:#fff;font-size:12px"></div>
+<div><label style="font-size:11px;color:#8899aa;display:block;margin-bottom:3px">n_расч</label><input type="number" id="simNrated" value="6750" step="50" style="width:74px;padding:4px 6px;background:#0f1a2e;border:1px solid #2a3548;border-radius:5px;color:#fff;font-size:12px"></div>
 </div>
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+<div><label style="font-size:11px;color:#8899aa;display:block;margin-bottom:3px">Масса, кг</label><input type="number" id="simMass" value="490" step="10" style="width:74px;padding:4px 6px;background:#0f1a2e;border:1px solid #2a3548;border-radius:5px;color:#fff;font-size:12px"></div>
+<div><label style="font-size:11px;color:#8899aa;display:block;margin-bottom:3px">r колеса, м</label><input type="number" id="simR" value="0.33" step="0.01" style="width:74px;padding:4px 6px;background:#0f1a2e;border:1px solid #2a3548;border-radius:5px;color:#fff;font-size:12px"></div>
+<div><label style="font-size:11px;color:#8899aa;display:block;margin-bottom:3px">u₀</label><input type="number" id="simU0" value="8.7" step="0.1" style="width:74px;padding:4px 6px;background:#0f1a2e;border:1px solid #2a3548;border-radius:5px;color:#fff;font-size:12px"></div>
+<div><label style="font-size:11px;color:#8899aa;display:block;margin-bottom:3px">f качения</label><input type="number" id="simF" value="0.035" step="0.005" style="width:74px;padding:4px 6px;background:#0f1a2e;border:1px solid #2a3548;border-radius:5px;color:#fff;font-size:12px"></div>
+<div><label style="font-size:11px;color:#8899aa;display:block;margin-bottom:3px">c_x·A</label><input type="number" id="simKaer" value="0.48" step="0.02" style="width:74px;padding:4px 6px;background:#0f1a2e;border:1px solid #2a3548;border-radius:5px;color:#fff;font-size:12px"></div>
+</div>
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+<div><label style="font-size:11px;color:#8899aa;display:block;margin-bottom:3px">μ сцепления</label><input type="number" id="simMu" value="0.7" step="0.05" style="width:74px;padding:4px 6px;background:#0f1a2e;border:1px solid #2a3548;border-radius:5px;color:#fff;font-size:12px"></div>
+<div><label style="font-size:11px;color:#8899aa;display:block;margin-bottom:3px">δ вращ. масс</label><input type="number" id="simDelta" value="1.1" step="0.05" style="width:74px;padding:4px 6px;background:#0f1a2e;border:1px solid #2a3548;border-radius:5px;color:#fff;font-size:12px"></div>
+<div><label style="font-size:11px;color:#8899aa;display:block;margin-bottom:3px">J_e, кг·м²</label><input type="number" id="simJe" value="0.15" step="0.01" style="width:74px;padding:4px 6px;background:#0f1a2e;border:1px solid #2a3548;border-radius:5px;color:#fff;font-size:12px"></div>
+<div><label style="font-size:11px;color:#8899aa;display:block;margin-bottom:3px">η трансм.</label><input type="number" id="simEtaTr" value="0.92" step="0.01" style="width:74px;padding:4px 6px;background:#0f1a2e;border:1px solid #2a3548;border-radius:5px;color:#fff;font-size:12px"></div>
+<div><label style="font-size:11px;color:#8899aa;display:block;margin-bottom:3px">k_λ</label><input type="number" id="simKL" value="1.4" step="0.05" style="width:74px;padding:4px 6px;background:#0f1a2e;border:1px solid #2a3548;border-radius:5px;color:#fff;font-size:12px"></div>
+<div><label style="font-size:11px;color:#8899aa;display:block;margin-bottom:3px">ρ ж., кг/м³</label><input type="number" id="simRho" value="850" step="10" style="width:74px;padding:4px 6px;background:#0f1a2e;border:1px solid #2a3548;border-radius:5px;color:#fff;font-size:12px"></div>
+</div>
+<button id="btnSim" type="button">▶ Старт</button>
+<button id="btnSimReset" type="button" style="margin-left:8px">🗑 Сброс</button>
+<span id="simStatus" style="font-size:12px;color:#6a7a8a;margin-left:10px"></span>
+<div id="simOut" style="margin-top:12px"></div>
+<div class="chart-wrap"><canvas id="chartSim1"></canvas>
+<div class="chart-title">Разгон: скорость от времени</div></div>
+<div class="chart-wrap"><canvas id="chartSim2"></canvas>
+<div class="chart-title">Обороты двигателя и i (зелёная ось справа)</div></div>
+<div style="margin-top:14px;border:1px solid #2a3548;border-radius:8px;padding:10px;background:#101a2c">
+<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+<button id="btnAnim" type="button">▶ Играть</button>
+<button id="btnAnimReset" type="button">⟲ Сброс</button>
+<label style="font-size:11px;color:#8899aa">Ускорение</label>
+<select id="animSpeed" style="padding:4px 6px;background:#0f1a2e;border:1px solid #2a3548;border-radius:5px;color:#fff;font-size:12px"><option value="1">1×</option><option value="2" selected>2×</option><option value="4">4×</option><option value="8">8×</option></select>
+<span id="animInfo" style="font-size:12px;color:#6a7a8a"></span>
+</div>
+<canvas id="animSim" style="width:100%;height:320px"></canvas>
+</div>
+</div>
+</div>
+
 </div>
 </div>
 <script>
@@ -1974,6 +2019,316 @@ this._lastEtaMech = eta_mech;
     st.textContent = 'Точек: ' + pts.length + ' · при изменении параметров панели нажмите «Проверить» заново';
   }
 
+  // ----------------------------------------------------------------
+  //  Симуляция разгона (квазистационарная, одна передача)
+  // ----------------------------------------------------------------
+
+  /** Момент двигателя при полной подаче, Н·м. Кусочно-линейная ВШХ по трём точкам */
+  _simEngTorque(nRpm, p) {
+    if (nRpm < p.nIdle) return 0;
+    if (nRpm >= p.nMax) return 0; // ограничитель оборотов
+    const pts = [
+      [p.nIdle, 0.45 * p.Mmax],
+      [p.nM,    p.Mmax],
+      [p.nMax,  0.75 * p.Mmax]
+    ];
+    for (let k = 1; k < pts.length; k++) {
+      if (nRpm <= pts[k][0]) {
+        const a = pts[k - 1], b = pts[k];
+        return a[1] + (nRpm - a[0]) / (b[0] - a[0]) * (b[1] - a[1]);
+      }
+    }
+    return 0;
+  }
+
+  /** Время набора скорости, с (null — не набрана за симуляцию) */
+  _simTimeTo(rec, vKmh) {
+    for (let k = 0; k < rec.v.length; k++) if (rec.v[k] >= vKmh) return rec.t[k];
+    return null;
+  }
+
+  /** Интегрирование вариантов «с ГТР» и «жёсткая передача», графики и метрики */
+  _runSim() {
+    const st = document.getElementById('simStatus');
+    const out = document.getElementById('simOut');
+    const ids = ['simMmax','simNM','simNidle','simNmax','simNrated','simMass','simR','simU0',
+      'simF','simKaer','simMu','simDelta','simJe','simEtaTr','simKL','simRho'];
+    const p = {};
+    let ok = true;
+    ids.forEach(id => { p[id] = this._parse(id); if (!isFinite(p[id])) ok = false; });
+    if (!ok || p.simMass <= 0 || p.simR <= 0 || p.simU0 <= 0 || p.simJe <= 0 ||
+        p.simNmax <= p.simNM || p.simNM <= p.simNidle) {
+      if (st) st.textContent = 'Проверьте параметры — часть полей пустая или противоречивая';
+      return;
+    }
+ // Алиас имён для ВШХ двигателя (в _simEngTorque свойства без префикса sim)
+ const ep = { Mmax: p.simMmax, nM: p.simNM, nIdle: p.simNidle, nMax: p.simNmax };
+ const D = this._parse('D'), iLock = this._parse('i_lock');
+    if (!isFinite(D) || D <= 0 || !isFinite(iLock) || iLock <= 0 || iLock > 1) {
+      if (st) st.textContent = 'Проверьте D и i_lock на основной панели';
+      return;
+    }
+    const N = this.compute();
+    if (!N || !N.length) { if (st) st.textContent = 'Основной расчёт не дал данных'; return; }
+    const xI = N.map((d, k) => (typeof d.i === 'number' ? d.i : k / (N.length - 1)));
+    const Karr = N.map(d => d.K);
+    const KofI = ii => this._interpGrid(xI, Karr, Math.min(Math.max(ii, 0), xI[xI.length - 1]));
+    // Авто-согласование λ: на оборотах n_расч насос отбирает момент ВШХ двигателя
+    const wRated = p.simNrated * Math.PI / 30;
+       const Mr = this._simEngTorque(p.simNrated, ep);
+    if (!(Mr > 0)) {
+      if (st) st.textContent = 'Момент на расчётных оборотах нулевой — проверьте n_расч относительно ВШХ';
+      return;
+    }
+    const D5 = Math.pow(D, 5);
+    const lamBl = Mr / (p.simRho * wRated * wRated * D5);
+    const lamOf = ii => {
+      const x = Math.min(1, Math.max(0, ii / iLock));
+      return lamBl * (p.simKL - (p.simKL - 1) * x * x);
+    };
+    const JT = p.simDelta * p.simMass * Math.pow(p.simR / p.simU0, 2);
+    const resT = V => (p.simF * p.simMass * 9.81 + 0.5 * 1.225 * p.simKaer * V * V) *
+      p.simR / (p.simU0 * p.simEtaTr);
+    const Fmax = p.simMu * p.simMass * 9.81;
+    const wIdle = p.simNidle * Math.PI / 30;
+    const dt = 0.002, CAP = 40000, DEC = 20;
+    const recG = { t: [], v: [], nH: [], i: [] };
+    const recL = { t: [], v: [], nH: [] };
+    let tLock = null, anySlip = false, err = null, nHminG = 1e9;
+    try {
+      // — Вариант А: с ГТР —
+      let wH = wIdle, wT = 0, locked = false, t = 0, hadRev = false;
+      for (let s = 0; s < CAP; s++) {
+        const V = wT * p.simR / p.simU0;
+        const ii = wH > 1 ? wT / wH : 0;
+        if (!locked) {
+        const Me = this._simEngTorque(wH * 30 / Math.PI, ep);
+          const MH = lamOf(ii) * p.simRho * wH * wH * D5;
+          let MTe = KofI(ii) * MH;
+          if (MTe * p.simU0 * p.simEtaTr / p.simR > Fmax) {
+            MTe = Fmax * p.simR / (p.simU0 * p.simEtaTr);
+            anySlip = true;
+          }
+          wH = Math.max(wH + (Me - MH) / p.simJe * dt, wIdle);
+          wT = Math.max(wT + (MTe - resT(V)) / JT * dt, 0);
+          if (wT >= iLock * wH) { locked = true; tLock = t; }
+        } else {
+          const wSum = (p.simJe * wH + JT * wT) / (p.simJe + JT);
+          wH = wSum; wT = wSum;
+          const Me = this._simEngTorque(wH * 30 / Math.PI, ep);
+          const acc = (Me - resT(wT * p.simR / p.simU0)) / (p.simJe + JT);
+          wH = Math.max(wH + acc * dt, wIdle); wT = wH;
+        }
+                if (wH > wIdle * 1.3) hadRev = true;
+        if (hadRev && wH < nHminG) nHminG = wH;
+        t += dt;
+        if (s % DEC === 0) {
+          recG.t.push(+t.toFixed(3));
+          recG.v.push(wT * p.simR / p.simU0 * 3.6);
+          recG.nH.push(wH * 30 / Math.PI);
+          recG.i.push(locked ? 1 : (wH > 1 ? wT / wH : 0));
+        }
+        if (wT * p.simR / p.simU0 * 3.6 >= 120) break;
+      }
+      // — Вариант Б: жёсткая передача с места (без проскальзывания) —
+      let w = wIdle, t2 = 0;
+      for (let s = 0; s < CAP; s++) {
+        const V = w * p.simR / p.simU0;
+        const Me = this._simEngTorque(w * 30 / Math.PI, ep);
+        w += (Me - resT(V)) / (p.simJe + JT) * dt;
+        if (w < wIdle) w = wIdle;
+        t2 += dt;
+        if (s % DEC === 0) {
+          recL.t.push(+t2.toFixed(3));
+          recL.v.push(w * p.simR / p.simU0 * 3.6);
+          recL.nH.push(w * 30 / Math.PI);
+        }
+        if (w * p.simR / p.simU0 * 3.6 >= 120) break;
+      }
+    } catch (e) { err = e; }
+    if (err) { if (st) st.textContent = 'Ошибка интегрирования: ' + err.message; return; }
+    const fmtT = v => v === null ? '—' : v.toFixed(1) + ' с';
+    const tG = [30, 60, 100].map(v => this._simTimeTo(recG, v));
+    const tL = [30, 60, 100].map(v => this._simTimeTo(recL, v));
+    const vMaxG = recG.v.length ? recG.v[recG.v.length - 1] : 0;
+    const vMaxL = recL.v.length ? recL.v[recL.v.length - 1] : 0;
+    let html = '<div style="border:1px solid #2a3548;border-radius:8px;padding:12px;background:#101a2c">' +
+      '<div style="font-size:13.5px;color:#e0e6f0;margin-bottom:8px"><b>Времена разгона:</b> масса ' +
+      p.simMass.toFixed(0) + ' кг · u₀ = ' + p.simU0.toFixed(1) + ' · D = ' + D.toFixed(3) + ' м · i_lock = ' + iLock.toFixed(2) + '</div>' +
+      '<table style="border-collapse:collapse;font-size:12.5px;color:#aab6c8">' +
+      '<tr style="color:#8899aa;text-align:left"><th style="padding:4px 14px 4px 0">Показатель</th><th style="padding:4px 14px 4px 0">С ГТР</th><th style="padding:4px 14px 4px 0">Жёсткая передача</th></tr>' +
+      '<tr><td style="padding:3px 14px 3px 0">0–30 км/ч</td><td style="padding:3px 14px 3px 0;color:#e0e6f0">' + fmtT(tG[0]) + '</td><td style="padding:3px 14px 3px 0">' + fmtT(tL[0]) + '</td></tr>' +
+      '<tr><td style="padding:3px 14px 3px 0">0–60 км/ч</td><td style="padding:3px 14px 3px 0;color:#e0e6f0">' + fmtT(tG[1]) + '</td><td style="padding:3px 14px 3px 0">' + fmtT(tL[1]) + '</td></tr>' +
+      '<tr><td style="padding:3px 14px 3px 0">0–100 км/ч</td><td style="padding:3px 14px 3px 0;color:#e0e6f0">' + fmtT(tG[2]) + '</td><td style="padding:3px 14px 3px 0">' + fmtT(tL[2]) + '</td></tr>' +
+      '<tr><td style="padding:3px 14px 3px 0">Скорость за 60 с, км/ч</td><td style="padding:3px 14px 3px 0;color:#e0e6f0">' + vMaxG.toFixed(1) + '</td><td style="padding:3px 14px 3px 0">' + vMaxL.toFixed(1) + '</td></tr>' +
+      '</table>';
+    if (tLock !== null) html += '<div style="font-size:12.5px;color:#aab6c8;margin-top:8px">Блокировка муфты: i достиг ' + iLock.toFixed(2) + ' при t = ' + tLock.toFixed(1) + ' с</div>';
+    if (anySlip) html += '<div style="font-size:12px;color:#c9a44a;margin-top:4px">Тяга ограничена сцеплением колёс (μ·m·g) — часть разгона идёт с пробуксовкой</div>';
+    if (nHminG < wIdle * 1.15) html += '<div style="font-size:12px;color:#c9a44a;margin-top:4px">Двигатель удерживается на холостых — насос отбирает больше момента, чем даёт ВШХ. Уменьшите D или проверьте конфигурацию ГТР</div>';
+    html += '<div style="font-size:12px;color:#6a7a8a;margin-top:8px">Паспортный ориентир РМ 800 Т: 0–100 км/ч ≈ 10,8 с (облегчённая серия, с вариатором). Наша модель — одна передача без переключений: время даёт нижнюю границу, качественная картина «ГТР против жёсткой» корректна</div></div>';
+    out.innerHTML = html;
+    this._drawFlex(document.getElementById('chartSim1'), [
+      { name: 'с ГТР', xdata: recG.t, data: recG.v },
+      { name: 'жёсткая передача', xdata: recL.t, data: recL.v, dashed: true }
+    ], 't, с', 'V, км/ч');
+    this._drawFlex(document.getElementById('chartSim2'), [
+      { name: 'n_H с ГТР', xdata: recG.t, data: recG.nH },
+      { name: 'n_H жёстк.', xdata: recL.t, data: recL.nH, dashed: true },
+      { name: 'i (ГТР)', xdata: recG.t, data: recG.i, right: true }
+    ], 't, с', 'n_H, об/мин', 'i');
+    this._simData = { recG, recL, tLock, KofI, iLock };
+    this._animReset();
+    if (st) st.textContent = 'Рассчитано: 2 варианта · шаг ' + (dt * 1000).toFixed(1) + ' мс · наведите мышь на график';
+  }
+  // ----------------------------------------------------------------
+  //  Анимация разгона (проигрывание результатов _runSim)
+  // ----------------------------------------------------------------
+
+  /** Накопленная дистанция, м, по записи скорости */
+  _animDist(rec) {
+    const s = [0];
+    for (let k = 1; k < rec.t.length; k++) {
+      const dt = rec.t[k] - rec.t[k - 1];
+      s.push(s[k - 1] + (rec.v[k] + rec.v[k - 1]) / 2 / 3.6 * dt);
+    }
+    return s;
+  }
+
+  _animReset() {
+    this._animState = { playing: false, tPlay: 0, lastTs: null };
+    const b = document.getElementById('btnAnim');
+    if (b) b.textContent = '▶ Играть';
+    this._drawAnim();
+  }
+
+  _animToggle() {
+    if (!this._simData) {
+      const st = document.getElementById('simStatus');
+      if (st) st.textContent = 'Сначала выполните «▶ Старт» на вкладке «Разгон»';
+      return;
+    }
+    const A = this._animState;
+    A.playing = !A.playing;
+    A.lastTs = null;
+    document.getElementById('btnAnim').textContent = A.playing ? '⏸ Пауза' : '▶ Играть';
+    if (A.playing) requestAnimationFrame(ts => this._animFrame(ts));
+  }
+
+  _animFrame(ts) {
+    const A = this._animState;
+    if (!A || !A.playing) return;
+    if (A.lastTs === null) A.lastTs = ts;
+    const mult = parseFloat(document.getElementById('animSpeed').value) || 1;
+    A.tPlay += (ts - A.lastTs) / 1000 * mult;
+    A.lastTs = ts;
+    const D = this._simData;
+    const tEnd = Math.max(D.recG.t[D.recG.t.length - 1], D.recL.t[D.recL.t.length - 1]);
+    if (A.tPlay >= tEnd) {
+      A.tPlay = tEnd; A.playing = false;
+      document.getElementById('btnAnim').textContent = '▶ Играть';
+    }
+    this._drawAnim();
+    if (A.playing) requestAnimationFrame(t2 => this._animFrame(t2));
+  }
+
+  /** Силуэт машины */
+  _carBody(ctx, x, y, col) {
+    const rr = (a, b, w, h, r) => {
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(a, b, w, h, r); else ctx.rect(a, b, w, h);
+      ctx.fill();
+    };
+    ctx.fillStyle = col;
+    rr(x, y, 46, 14, 4);
+    rr(x + 10, y - 8, 20, 9, 3);
+    ctx.fillStyle = '#1a2333';
+    ctx.beginPath(); ctx.arc(x + 9, y + 16, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + 37, y + 16, 5, 0, Math.PI * 2); ctx.fill();
+  }
+
+  /** Круглый прибор (спидометр / тахометр) */
+  _gauge(ctx, cx, cy, r, frac, col, txt, unit) {
+    const a0 = Math.PI * 0.75, a1 = Math.PI * 2.25;
+    frac = Math.max(0, Math.min(1, frac));
+    ctx.lineWidth = 6; ctx.strokeStyle = '#2a3548';
+    ctx.beginPath(); ctx.arc(cx, cy, r, a0, a1); ctx.stroke();
+    ctx.strokeStyle = col;
+    ctx.beginPath(); ctx.arc(cx, cy, r, a0, a0 + (a1 - a0) * frac); ctx.stroke();
+    const an = a0 + (a1 - a0) * frac;
+    ctx.lineWidth = 2; ctx.strokeStyle = '#e0e6f0';
+    ctx.beginPath(); ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(an) * (r - 10), cy + Math.sin(an) * (r - 10));
+    ctx.stroke();
+    ctx.fillStyle = '#e0e6f0'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(txt, cx, cy + r - 6);
+    ctx.fillStyle = '#6a7a8a'; ctx.font = '9px sans-serif';
+    ctx.fillText(unit, cx, cy + r + 9);
+    ctx.textAlign = 'left';
+  }
+
+  _drawAnim() {
+    const cv = document.getElementById('animSim');
+    if (!cv) return;
+    const W = cv.width = cv.clientWidth, H = cv.height = 320;
+    const ctx = cv.getContext('2d');
+    ctx.clearRect(0, 0, W, H);
+    const D = this._simData;
+    if (!D) {
+      ctx.fillStyle = '#6a7a8a'; ctx.font = '12px sans-serif';
+      ctx.fillText('Выполните «▶ Старт», чтобы появились данные для проигрывания', 16, 24);
+      return;
+    }
+    const A = this._animState, t = A.tPlay;
+    if (!D.sG) {
+      D.sG = this._animDist(D.recG);
+      D.sL = this._animDist(D.recL);
+      D.sEnd = Math.max(D.sG[D.sG.length - 1], D.sL[D.sL.length - 1]);
+    }
+    const Vg = this._interpGrid(D.recG.t, D.recG.v, t);
+    const Vl = this._interpGrid(D.recL.t, D.recL.v, t);
+    const nG = this._interpGrid(D.recG.t, D.recG.nH, t);
+    const sG = this._interpGrid(D.recG.t, D.sG, t);
+    const sL = this._interpGrid(D.recL.t, D.sL, t);
+    const x0 = 40, x1 = W - 24;
+    const scale = (x1 - x0) / D.sEnd;
+    const X = s => x0 + s * scale;
+    // старт и финиш
+    ctx.fillStyle = '#3a4558'; ctx.font = '10px sans-serif';
+    ctx.fillRect(x0, 40, 2, 130); ctx.fillText('СТАРТ', x0 - 22, 36);
+    ctx.setLineDash([4, 4]); ctx.strokeStyle = '#3a4558';
+    ctx.beginPath(); ctx.moveTo(x1, 40); ctx.lineTo(x1, 170); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillText('ФИНИШ', x1 - 20, 36);
+    // две дорожки
+    const rows = [
+      { y: 62, s: sG, v: Vg, col: '#5aa9f0', label: 'с ГТР' },
+      { y: 132, s: sL, v: Vl, col: '#9aa4b2', label: 'жёсткая передача' }
+    ];
+    rows.forEach(r => {
+      ctx.strokeStyle = '#2a3548'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(x0 - 10, r.y + 22); ctx.lineTo(x1, r.y + 22); ctx.stroke();
+      ctx.fillStyle = '#e0e6f0'; ctx.font = '11px sans-serif';
+      ctx.fillText(r.label + ': ' + r.v.toFixed(0) + ' км/ч', x0, r.y - 12);
+      this._carBody(ctx, Math.min(X(r.s), x1 - 30), r.y, r.col);
+    });
+    // режим ГТР
+    const iG = this._interpGrid(D.recG.t, D.recG.i, t);
+    ctx.font = '12px sans-serif';
+    if (iG < D.iLock - 1e-6) {
+      const K = D.KofI(iG);
+      ctx.fillStyle = '#5adf8a';
+      ctx.fillText('ТРАНСФОРМАЦИЯ · i = ' + iG.toFixed(2) + ' · K = ' + K.toFixed(2), x0, 26);
+    } else {
+      ctx.fillStyle = '#e0b040';
+      ctx.fillText('МУФТА ЗАБЛОКИРОВАНА · прямой ход', x0, 26);
+    }
+    // приборы
+    this._gauge(ctx, Math.min(W - 90, 260), 258, 42, Vg / 120, '#5aa9f0', Vg.toFixed(0), 'км/ч');
+    this._gauge(ctx, Math.min(W - 90, 420), 258, 42, nG / 7500, '#e0b040', (nG / 1000).toFixed(1), '×1000 об/мин');
+    const info = document.getElementById('animInfo');
+    if (info) info.textContent = 't = ' + t.toFixed(1) + ' с · ГТР: ' + (sG / 1000).toFixed(2) +
+      ' км · жёсткая: ' + (sL / 1000).toFixed(2) + ' км';
+  }
 // ----------------------------------------------------------------
   //  Главный цикл обновления
   // ----------------------------------------------------------------
@@ -2203,8 +2558,22 @@ this._lastEtaMech = eta_mech;
     // Валидация по экспериментальным точкам
     const valBtn = document.getElementById('btnValid');
     if (valBtn) valBtn.addEventListener('click', () => this._runValidation());
-    const expBtn = document.getElementById('btnExpExample');
+       const expBtn = document.getElementById('btnExpExample');
     if (expBtn) expBtn.addEventListener('click', () => this._fillExpExample());
+    const simBtn = document.getElementById('btnSim');
+    if (simBtn) simBtn.addEventListener('click', () => this._runSim());
+    const simRst = document.getElementById('btnSimReset');
+    if (simRst) simRst.addEventListener('click', () => {
+      const o = document.getElementById('simOut');
+      if (o) o.innerHTML = '';
+      const st = document.getElementById('simStatus');
+      if (st) st.textContent = '';
+    });
+    const animBtn = document.getElementById('btnAnim');
+    if (animBtn) animBtn.addEventListener('click', () => this._animToggle());
+    const animRst = document.getElementById('btnAnimReset');
+    if (animRst) animRst.addEventListener('click', () => this._animReset());
+
 
     // Экспорт данных: CSV-таблица и PNG активного графика
     const csvBtn = document.getElementById('btnCsv');
